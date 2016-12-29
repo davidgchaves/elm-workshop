@@ -1,6 +1,5 @@
 # Notes on *Richard Feldman's Workshop: Elm Workshop*
 
-
 ## 0. Setup
 
 ### Installation (Node)
@@ -37,7 +36,6 @@ token =
 **Note:** Even for a token that has no permissions, good security habits are
 still important! `Auth.elm` is in `.gitignore` to avoid accidentally checking in
 an API secret, and you should [delete this token](https://github.com/settings/tokens) when the workshop is over.
-
 
 ### Installation (Elm)
 
