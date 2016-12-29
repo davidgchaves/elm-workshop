@@ -50,3 +50,25 @@ an API secret, and you should [delete this token](https://github.com/settings/to
 ```bash
 ❯ elm-live Main.elm --open --pushstate --output=elm.js
 ```
+
+
+## 1. Rendering a Page
+
+### Expressions
+
+An **EXPRESSION** evaluates to a single value.
+
+### if-expressions
+
+Every `if` must come with a `then` and an `else`, because `if ... then ... else ...` is an **EXPRESSION** in Elm.
+
+```elm
+pluralize singular plural quantity =
+    if quantity == 1 then singular else plural
+```
+
+### References
+
+- [**if-expressions**](http://elm-lang.org/docs/syntax#conditionals)
+- [elm-html documentation](http://package.elm-lang.org/packages/elm-lang/html/latest)
+- [html-to-elm](http://mbylstra.github.io/html-to-elm/) - paste in HTML, get elm-html code
