@@ -72,3 +72,72 @@ pluralize singular plural quantity =
 - [**if-expressions**](http://elm-lang.org/docs/syntax#conditionals)
 - [elm-html documentation](http://package.elm-lang.org/packages/elm-lang/html/latest)
 - [html-to-elm](http://mbylstra.github.io/html-to-elm/) - paste in HTML, get elm-html code
+
+
+## 2. Basic Data Structures
+
+### Strings
+
+Use:
+
+- `++` to concatenate.
+- `toString` to convert anything into a String.
+
+### let-expressions
+
+`let ... in ...`
+
+```elm
+pluralize singular plural quantity =
+    let
+        prefix = toString quantity ++ " "
+    in
+        if quantity == 1 then
+            prefix ++ singular
+        else
+            prefix ++ plural
+```
+
+`quantityStr` and `prefix` constants are inaccessible to outside scope.
+
+### Collections: Records
+
+- Data holders.
+- Fix length.
+- Mixed contents.
+- Deceitfully similar to JavaScript Objects:
+	- Flat, immutable data structure that hold on to values.
+	- No inheritance.
+	- No methods.
+	- No local state.
+
+```elm
+record =
+    { name = "thing", x = 1, y = 3 }
+record.name -- "thing"
+record.x    -- 1
+record.y    -- 3
+```
+
+### Collections: Lists
+
+- All Lists must contain elements that share a common type.
+- Variable length.
+- Uniform contents.
+
+```elm
+list =
+    [ 1, 2, 3 ]
+
+listOfLists =
+    [ [ "foo", "bar" ], [ "baz" ] ]
+
+invalidList =
+    [ 1, "one" ]
+```
+
+### References
+
+- [**let-expressions**](http://elm-lang.org/docs/syntax#let-expressions)
+- [record syntax](http://elm-lang.org/docs/syntax#records) (e.g. `{ foo = 1, bar = 2 }`)
+- [`List.map` documentation](http://package.elm-lang.org/packages/elm-lang/core/3.0.0/List#map)
