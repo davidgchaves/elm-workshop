@@ -1,7 +1,8 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import Html.Attributes exposing (class, href)
+import Html.Attributes exposing (class, href, target)
+import Html.Events exposing (onClick)
 
 
 type alias Result =
@@ -11,18 +12,58 @@ type alias Result =
     }
 
 
-model : { result : Result }
-model =
-    { result =
-        { id = 1
-        , name = "TheSeamau5/elm-checkerboardgrid-tutorial"
-        , stars = 88
-        }
+type alias Model =
+    { results : List Result }
+
+
+initialModel : Model
+initialModel =
+    { results =
+        [ { id = 1
+          , name = "TheSeamau5/elm-checkerboardgrid-tutorial"
+          , stars = 66
+          }
+        , { id = 2
+          , name = "grzegorzbalcerek/elm-by-example"
+          , stars = 41
+          }
+        , { id = 3
+          , name = "sporto/elm-tutorial-app"
+          , stars = 35
+          }
+        , { id = 4
+          , name = "jvoigtlaender/Elm-Tutorium"
+          , stars = 10
+          }
+        , { id = 5
+          , name = "sporto/elm-tutorial-assets"
+          , stars = 7
+          }
+        ]
     }
 
 
-viewHeader : Html a
-viewHeader =
+
+-- UPDATE
+
+
+type Msg
+    = DeleteById Int
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        DeleteById id ->
+            { model | results = model.results |> List.filter (\r -> r.id /= id) }
+
+
+
+-- VIEW
+
+
+viewElmHubHeader : Html a
+viewElmHubHeader =
     header []
         [ h1 [] [ text "ElmHub" ]
         , span [ class "tagline" ]
@@ -30,21 +71,38 @@ viewHeader =
         ]
 
 
-viewElmHubs : Html a
-viewElmHubs =
-    ul [ class "results" ]
-        [ li []
-            [ span [ class "star-count" ]
-                [ model.result.stars |> toString |> text ]
-            , a [ href ("https://github.com/" ++ model.result.name) ]
-                [ text model.result.name ]
-            ]
+viewElmHubs : List Result -> Html Msg
+viewElmHubs results =
+    ul [ class "results" ] (List.map viewSearchResults results)
+
+
+viewSearchResults : Result -> Html Msg
+viewSearchResults result =
+    li []
+        [ span [ class "star-count" ]
+            [ result.stars |> toString |> text ]
+        , a [ href ("https://github.com/" ++ result.name), target "_blank" ]
+            [ text result.name ]
+        , button [ class "hide-result", onClick (DeleteById result.id) ] [ text "X" ]
         ]
 
 
-main : Html a
-main =
+view : Model -> Html Msg
+view model =
     div [ class "content" ]
-        [ viewHeader
-        , viewElmHubs
+        [ viewElmHubHeader
+        , viewElmHubs model.results
         ]
+
+
+
+-- MAIN
+
+
+main : Program Never Model Msg
+main =
+    Html.beginnerProgram
+        { model = initialModel
+        , view = view
+        , update = update
+        }

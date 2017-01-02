@@ -117,6 +117,12 @@ record.x    -- 1
 record.y    -- 3
 ```
 
+#### Record update syntax
+
+```elm
+{ model | someData = model.someData + newData }
+```
+
 ### Collections: Lists
 
 - All Lists must contain elements that share a common type.
@@ -139,3 +145,109 @@ invalidList =
 - [**let-expressions**](http://elm-lang.org/docs/syntax#let-expressions)
 - [record syntax](http://elm-lang.org/docs/syntax#records) (e.g. `{ foo = 1, bar = 2 }`)
 - [`List.map` documentation](http://package.elm-lang.org/packages/elm-lang/core/3.0.0/List#map)
+
+
+## 3. Adding Interaction
+
+### Booleans
+
+There's not *truthiness*, just booleans:
+
+```elm
+type Boolean
+    = True
+    | False
+```
+
+### Partial Application
+
+Elm supports partial application by default
+
+```elm
+pluralizeLeaves quantity =
+    pluralize "leaf" "leaves" quantity
+```
+
+or the more idiomatic
+
+```elm
+pluralizeLeaves =
+    pluralize "leaf" "leaves"
+```
+
+### Anonymous Functions
+
+```elm
+isKeepable x = x >= 2
+```
+
+vs
+
+```elm
+(\x -> x >= 2)
+```
+
+### `List.filter`
+
+```elm
+List.filter isKeepable     [ 1, 2, 3 ] -- [ 2, 3 ]
+List.filter (\x -> x >= 2) [ 1, 2, 3 ] -- [ 2, 3 ]
+```
+
+### `List.map`
+
+```elm
+List.map (pluralize "leaf" "leaves") [ 1, 2, 3 ]
+-- [ "1 leaf", "2 leaves", "3 leaves" ]
+
+List.map (\x -> x * 2) [ 1, 2, 3 ] -- [ 2, 4, 6 ]
+```
+
+### Model - View - Update (Elm Architecture)
+
+- All of our application state lives in the `Model`.
+- The `Elm Runtime` is going to pass our current `Model` to our `view` function as an argument, in order to get the current `Html`.
+- When the user is interacting, `update` takes us from the current `Model` to a new (`update`d) `Model`, based on the user interaction.
+
+1. User does something.
+2. We get a `Message` from the `Elm Runtime`.
+2. We `update` the `Model` according to the `Message`.
+3. `view` gets run once more with the new `Model`.
+4. New `Html` is produced.
+5. The `Elm Runtime` takes care of the rest.
+
+### Update and Message Example with a Record as the Message
+
+```elm
+button
+    [ onClick { operation = "SHOW_MORE", data = 10 } ]
+    [ text "Show More" ]
+
+update msg model =
+    if msg.operation == "SHOW_MORE" then
+        { model | maxResults = model.maxResults + msg.data }
+    else
+        model
+```
+
+### Update and Message Example with a Union Type as the Message
+
+```elm
+type Msg
+    = ShowMore Int
+
+button
+    [ onClick (ShowMore 10) ]
+    [ text "Show More" ]
+
+update msg model =
+    case msg of
+        ShowMore n ->
+            { model | maxResults = model.maxResults + n }
+```
+
+### References
+
+- [The Elm Architecture](http://guide.elm-lang.org/architecture/)
+- [`onClick` documentation](http://package.elm-lang.org/packages/evancz/elm-html/4.0.2/Html-Events#onClick)
+- [record update syntax reference](http://elm-lang.org/docs/syntax#records) (e.g. `{ model | query = "foo" }`)
