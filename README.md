@@ -251,3 +251,62 @@ update msg model =
 - [The Elm Architecture](http://guide.elm-lang.org/architecture/)
 - [`onClick` documentation](http://package.elm-lang.org/packages/evancz/elm-html/4.0.2/Html-Events#onClick)
 - [record update syntax reference](http://elm-lang.org/docs/syntax#records) (e.g. `{ model | query = "foo" }`)
+
+
+## 4. Annotations
+
+### Type Aliases
+
+A **type alias** gives a name to a new type.
+
+```elm
+type alias SearchResult =
+    { id : Int
+    , name : String,
+    , stars : Int
+    }
+
+type alias Model =
+    { query : String
+    , results : List SearchResults
+    }
+
+type alias Msg =
+    { operation : String
+    , data : String
+    }
+```
+
+### Function Annotations
+
+```elm
+view : Model -> Html Msg
+view model =
+    button
+        [ onClick { operation = "RESET", data = "all" } ]
+        [ text "Reset All" ]
+
+update : Msg -> Model -> Model
+update msg model =
+    if msg.operation == "RESET" then
+        { model | query = "", results = [] }
+    else
+        model
+```
+
+#### What about `Html Msg`?
+
+`Html Msg` represents a chunk of `Html` (a virtualDOM structure), where the event handlers produce this type of `Msg`.
+
+For everything to work as it should, the event handlers in the `view` should produce the exact same type of `Msg` that `update` expects.
+
+### Curry and Partial Application
+
+A language that supports **currying** is a language where you can do **partial application**.
+
+All functions in Elm are curried (so they support partial application).
+
+### References
+
+- [Type Annotation syntax reference](http://elm-lang.org/docs/syntax#type-annotations)
+- [`type alias` syntax reference](http://elm-lang.org/docs/syntax#type-aliases)
