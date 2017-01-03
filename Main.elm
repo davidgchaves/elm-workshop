@@ -1,8 +1,8 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import Html.Attributes exposing (class, href, target)
-import Html.Events exposing (onClick)
+import Html.Attributes exposing (class, defaultValue, href, target)
+import Html.Events exposing (onClick, onInput)
 
 
 type alias SearchResult =
@@ -52,6 +52,7 @@ initialModel =
 
 type Msg
     = DeleteById Int
+    | SetQuery String
 
 
 update : Msg -> Model -> Model
@@ -59,6 +60,9 @@ update msg model =
     case msg of
         DeleteById id ->
             { model | results = model.results |> List.filter (\r -> r.id /= id) }
+
+        SetQuery q ->
+            { model | query = q |> Debug.log "Debugging" }
 
 
 
@@ -69,8 +73,7 @@ viewElmHubHeader : Html a
 viewElmHubHeader =
     header []
         [ h1 [] [ text "ElmHub" ]
-        , span [ class "tagline" ]
-            [ text "Like GitHub, but for Elm things." ]
+        , span [ class "tagline" ] [ text "Like GitHub, but for Elm things." ]
         ]
 
 
@@ -90,10 +93,24 @@ viewSearchResults result =
         ]
 
 
+viewSearchElmHubs : String -> Html Msg
+viewSearchElmHubs query =
+    div []
+        [ input
+            [ class "search-query"
+            , onInput SetQuery
+            , defaultValue query
+            ]
+            []
+        , button [ class "search-button" ] [ text "Search" ]
+        ]
+
+
 view : Model -> Html Msg
 view model =
     div [ class "content" ]
         [ viewElmHubHeader
+        , viewSearchElmHubs model.query
         , viewElmHubs model.results
         ]
 

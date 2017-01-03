@@ -310,3 +310,78 @@ All functions in Elm are curried (so they support partial application).
 
 - [Type Annotation syntax reference](http://elm-lang.org/docs/syntax#type-annotations)
 - [`type alias` syntax reference](http://elm-lang.org/docs/syntax#type-aliases)
+
+
+## 5. Union Types
+
+### case-expressions
+
+`case ... of ...`
+
+```elm
+case msg.operations of
+    "DELETE_BY_ID" -> -- remove from model
+    "LOAD_RESULTS" -> -- load more results
+    _              -> -- default branch
+```
+
+### Creating and Using Union Types
+
+```elm
+type Sorting      -- Sorting    is a TYPE
+    = Ascending   -- Ascending  is a CONSTANT VALUE
+    | Descending  -- Descending is a CONSTANT VALUE
+    | Randomized  -- Randomized is a CONSTANT VALUE
+
+case currentSorting of
+    Ascending  -> -- sort ascending  here
+    Descending -> -- sort descending here
+    Randomized -> -- sort randomized here
+```
+
+### Parameterized Constructors in Union Types
+
+```elm
+type Sorting             -- Sorting    is a TYPE
+    = Ascending String   -- Ascending  is a FUNCTION
+    | Descending String  -- Descending is a FUNCTION
+    | Randomized         -- Randomized is a CONSTANT VALUE
+```
+
+Both `Ascending` and `Descending` have a `String -> Sorting` signature.
+
+### Using Parameterized Union types
+
+```elm
+case currentSorting of
+    Ascending colName  -> -- sort ascending  code here
+    Descending colName -> -- sort descending code here
+    Randomized         -> -- sort randomized code here
+```
+
+### Representing `Msg` as a Union Type
+
+This is the preferred way to deal with `Msg`.
+
+```elm
+type Msg
+    = SetQuery String
+    | DeletedBy Int
+
+case msg of
+    SetQuery query -> -- set query in the model here
+    DeletedBy id   -> -- delete the result with this id here
+```
+
+### Tip: Wiring up `Debug.log`
+
+```elm
+-- Debug.log : String -> a -> a
+
+logMeValue |> Debug.log "logMeValue is"
+```
+
+### References
+
+- [**case-expressions**](http://elm-lang.org/docs/syntax#conditionals)
+- [Union Types syntax reference](http://elm-lang.org/docs/syntax#union-types)
