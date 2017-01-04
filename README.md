@@ -385,3 +385,164 @@ logMeValue |> Debug.log "logMeValue is"
 
 - [**case-expressions**](http://elm-lang.org/docs/syntax#conditionals)
 - [Union Types syntax reference](http://elm-lang.org/docs/syntax#union-types)
+
+
+## 6. Decoding JSON
+
+### `Result` Type
+
+```elm
+type Result error value
+    = Ok value
+    | Err error
+
+String.toInt "42" -- Ok 42
+String.toInt "Si" -- Err "umm Si is not an int"
+```
+
+### `Maybe` Type
+
+```elm
+type Maybe
+    = Just value
+    | Nothing
+
+List.head [ 5, 10, 15 ] -- Just 5
+List.head []            -- Nothing
+```
+
+#### Tip: Operating with `Maybe`s
+
+You can use `Maybe.withDefault` or `Maybe.map` to avoid repetitive tasks:
+
+```elm
+-- withDefault : a -> Maybe a -> a
+-- map : (a -> b) -> Maybe a -> Maybe b
+
+[ 1, 2, 3 ]
+     |> List.head
+     |> Maybe.withDefault 0
+-- 1 : Number
+
+[]
+     |> List.head
+     |> Maybe.withDefault 0
+-- 0 : Number
+
+[ 1, 2, 3 ]
+     |> List.head
+     |> Maybe.map (\x -> x + 10)
+-- Just 11 : Maybe number
+```
+
+### Pipelines
+
+The `|>` operator inserts the result from the previous step as the final argument in the current step.
+
+```elm
+[ 2, 4, 6, 8]
+    |> List.filter (\n -> n < 5)
+    |> List.reverse
+    |> List.map negate
+    |> List.head
+```
+
+### Decoders (from JSON to Elm)
+
+`float` decoder in action:
+
+```elm
+"123.45"
+    |> decodeString float
+-- Ok 134.45
+
+"blah"
+    |> decodeString float
+-- Err "blahhh is not a float!"
+```
+
+Decoders are composable:
+
+```elm
+"[1, 2, 3]"
+    |> decodeString (list int)
+-- Ok [ 1, 2, 3 ]
+```
+
+### Decoding Objects into Records
+
+#### Take 1 (Naïve)
+
+```elm
+makeGameState score playing =
+    { score = score, playing = playing }
+
+decoder =
+    decode makeGameState
+        |> required "score" float
+        |> required "playing" bool
+
+"""{"score": 5.5, "playing": true }"""
+    |> decodeString decoder
+-- Ok { score = 5.5, playing = True }
+```
+
+#### Take 2 (Idiomatic)
+
+If you create a `type alias` for a `record`, you get a constructor for that type (well, a function) for free:
+
+```elm
+-- The GameState type alias...
+type alias GameState =
+    { score: Float
+    , playing: Bool
+    }
+
+-- ...gives you a GameState function...
+GameState : Float -> Bool -> GameState
+
+-- ...equivalent to the previous makeGameState
+makeGameState : Float -> Bool -> GameState
+makeGameState score playing =
+    { score = score, playing = playing }
+```
+
+```elm
+type alias GameState =
+    { score: Float
+    , playing: Bool
+    }
+
+decoder =
+    decode GameState
+        |> required "score" float
+        |> required "playing" bool
+
+"""{"score": 5.5, "playing": true }"""
+    |> decodeString decoder
+-- Ok { score = 5.5, playing = True }
+```
+
+### Uppercase functions in Elm
+
+There's only two cases:
+
+- **Case 1**: Function for constructing a `type alias` for a `record`.
+- **Case 2**: Function for constructing a Parameterized Union Type.
+
+
+### `"""` in Elm
+
+`"""` in Elm is for when you want to make a string that:
+
+- can have `"` in it.
+- can be multiline.
+
+
+### References
+
+- [`Maybe` documentation](http://package.elm-lang.org/packages/elm-lang/core/5.0.0/Maybe)
+- [`Result` documentation](http://package.elm-lang.org/packages/elm-lang/core/5.0.0/Result)
+- [JSON decoding](http://guide.elm-lang.org/interop/json.html)
+- [`Json.Decode` documentation](http://package.elm-lang.org/packages/elm-lang/core/5.0.0/Json-Decode)
+- [`elm-decode-pipeline` documentation](http://package.elm-lang.org/packages/NoRedInk/elm-decode-pipeline/latest)

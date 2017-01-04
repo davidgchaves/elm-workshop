@@ -3,6 +3,8 @@ module Main exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (class, defaultValue, href, target)
 import Html.Events exposing (onClick, onInput)
+import Json.Decode as Decode
+import FakeResponse
 
 
 type alias SearchResult =
@@ -21,28 +23,7 @@ type alias Model =
 initialModel : Model
 initialModel =
     { query = ""
-    , results =
-        [ { id = 1
-          , name = "TheSeamau5/elm-checkerboardgrid-tutorial"
-          , stars = 66
-          }
-        , { id = 2
-          , name = "grzegorzbalcerek/elm-by-example"
-          , stars = 41
-          }
-        , { id = 3
-          , name = "sporto/elm-tutorial-app"
-          , stars = 35
-          }
-        , { id = 4
-          , name = "jvoigtlaender/Elm-Tutorium"
-          , stars = 10
-          }
-        , { id = 5
-          , name = "sporto/elm-tutorial-assets"
-          , stars = 7
-          }
-        ]
+    , results = fakeResults
     }
 
 
@@ -63,6 +44,48 @@ update msg model =
 
         SetQuery q ->
             { model | query = q |> Debug.log "Debugging" }
+
+
+
+-- DECODERS
+
+
+fakeResults : List SearchResult
+fakeResults =
+    decodeResults FakeResponse.json
+
+
+githubDecoder : Decode.Decoder (List SearchResult)
+githubDecoder =
+    Decode.field "items" searchResultsDecoder
+
+
+searchResultsDecoder : Decode.Decoder (List SearchResult)
+searchResultsDecoder =
+    Decode.list searchResultDecoder
+
+
+searchResultDecoder : Decode.Decoder SearchResult
+searchResultDecoder =
+    Decode.map3
+        SearchResult
+        (Decode.field "id" Decode.int)
+        (Decode.field "full_name" Decode.string)
+        (Decode.field "stargazers_count" Decode.int)
+
+
+decodeResults : String -> List SearchResult
+decodeResults json =
+    case (json |> Decode.decodeString githubDecoder) of
+        Ok searchResults ->
+            searchResults
+
+        Err error ->
+            let
+                _ =
+                    Debug.log "Error Decoding with Github Decoder" error
+            in
+                []
 
 
 
