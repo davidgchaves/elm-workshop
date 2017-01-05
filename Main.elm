@@ -3,8 +3,11 @@ module Main exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (class, defaultValue, href, target)
 import Html.Events exposing (onClick, onInput)
-import Json.Decode as Decode
+import Json.Decode as Decode exposing (Decoder)
 import FakeResponse
+
+
+-- TYPE ALIAS
 
 
 type alias SearchResult =
@@ -18,6 +21,10 @@ type alias Model =
     { query : String
     , results : List SearchResult
     }
+
+
+
+-- MODEL
 
 
 initialModel : Model
@@ -55,25 +62,6 @@ fakeResults =
     decodeResults FakeResponse.json
 
 
-githubDecoder : Decode.Decoder (List SearchResult)
-githubDecoder =
-    Decode.field "items" searchResultsDecoder
-
-
-searchResultsDecoder : Decode.Decoder (List SearchResult)
-searchResultsDecoder =
-    Decode.list searchResultDecoder
-
-
-searchResultDecoder : Decode.Decoder SearchResult
-searchResultDecoder =
-    Decode.map3
-        SearchResult
-        (Decode.field "id" Decode.int)
-        (Decode.field "full_name" Decode.string)
-        (Decode.field "stargazers_count" Decode.int)
-
-
 decodeResults : String -> List SearchResult
 decodeResults json =
     case (json |> Decode.decodeString githubDecoder) of
@@ -88,8 +76,29 @@ decodeResults json =
                 []
 
 
+githubDecoder : Decoder (List SearchResult)
+githubDecoder =
+    Decode.at [ "items" ]
+        (Decode.list
+            (Decode.map3 SearchResult
+                (Decode.field "id" Decode.int)
+                (Decode.field "full_name" Decode.string)
+                (Decode.field "stargazers_count" Decode.int)
+            )
+        )
+
+
 
 -- VIEW
+
+
+view : Model -> Html Msg
+view model =
+    div [ class "content" ]
+        [ viewElmHubHeader
+        , viewSearchElmHubs model.query
+        , viewElmHubs model.results
+        ]
 
 
 viewElmHubHeader : Html a
@@ -97,22 +106,6 @@ viewElmHubHeader =
     header []
         [ h1 [] [ text "ElmHub" ]
         , span [ class "tagline" ] [ text "Like GitHub, but for Elm things." ]
-        ]
-
-
-viewElmHubs : List SearchResult -> Html Msg
-viewElmHubs results =
-    ul [ class "results" ] (List.map viewSearchResults results)
-
-
-viewSearchResults : SearchResult -> Html Msg
-viewSearchResults result =
-    li []
-        [ span [ class "star-count" ]
-            [ result.stars |> toString |> text ]
-        , a [ href ("https://github.com/" ++ result.name), target "_blank" ]
-            [ text result.name ]
-        , button [ class "hide-result", onClick (DeleteById result.id) ] [ text "X" ]
         ]
 
 
@@ -129,12 +122,19 @@ viewSearchElmHubs query =
         ]
 
 
-view : Model -> Html Msg
-view model =
-    div [ class "content" ]
-        [ viewElmHubHeader
-        , viewSearchElmHubs model.query
-        , viewElmHubs model.results
+viewElmHubs : List SearchResult -> Html Msg
+viewElmHubs results =
+    ul [ class "results" ] (List.map viewSearchResults results)
+
+
+viewSearchResults : SearchResult -> Html Msg
+viewSearchResults result =
+    li []
+        [ span [ class "star-count" ]
+            [ result.stars |> toString |> text ]
+        , a [ href ("https://github.com/" ++ result.name), target "_blank" ]
+            [ text result.name ]
+        , button [ class "hide-result", onClick (DeleteById result.id) ] [ text "X" ]
         ]
 
 
