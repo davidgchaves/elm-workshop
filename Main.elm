@@ -6,6 +6,7 @@ import Html.Events exposing (onClick, onInput)
 import Json.Decode as Decode exposing (Decoder)
 import Http
 import Auth
+import Html.Keyed as Keyed
 
 
 -- TYPE ALIAS
@@ -174,18 +175,20 @@ viewErrorMessage msg =
 
 viewElmHubs : List SearchResult -> Html Msg
 viewElmHubs results =
-    ul [ class "results" ] (List.map viewSearchResults results)
+    Keyed.ul [ class "results" ] (List.map viewSearchResults results)
 
 
-viewSearchResults : SearchResult -> Html Msg
+viewSearchResults : SearchResult -> ( String, Html Msg )
 viewSearchResults result =
-    li []
+    ( toString result.id
+    , li []
         [ span [ class "star-count" ]
             [ result.stars |> toString |> text ]
         , a [ href ("https://github.com/" ++ result.name), target "_blank" ]
             [ text result.name ]
         , button [ class "hide-result", onClick (DeleteById result.id) ] [ text "X" ]
         ]
+    )
 
 
 

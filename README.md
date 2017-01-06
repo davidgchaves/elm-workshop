@@ -596,3 +596,4 @@ type Msg
 - [Running Effects](http://guide.elm-lang.org/architecture/effects/)
 - [HTTP Error documentation](http://package.elm-lang.org/packages/elm-lang/http/1.0.0/Http#Error)
 - [Modules syntax reference](http://elm-lang.org/docs/syntax#modules)
+- [Html.Keyed documentation](http://package.elm-lang.org/packages/elm-lang/html/2.0.0/Html-Keyed)
