@@ -4,7 +4,8 @@ import Html exposing (..)
 import Html.Attributes exposing (class, defaultValue, href, target)
 import Html.Events exposing (onClick, onInput)
 import Json.Decode as Decode exposing (Decoder)
-import FakeResponse
+import Http
+import Auth
 
 
 -- TYPE ALIAS
@@ -20,6 +21,7 @@ type alias SearchResult =
 type alias Model =
     { query : String
     , results : List SearchResult
+    , error : Maybe String
     }
 
 
@@ -30,7 +32,8 @@ type alias Model =
 initialModel : Model
 initialModel =
     { query = ""
-    , results = fakeResults
+    , results = []
+    , error = Nothing
     }
 
 
@@ -41,39 +44,80 @@ initialModel =
 type Msg
     = DeleteById Int
     | SetQuery String
+    | Search
+    | HandleGithubResponse (Result Http.Error (List SearchResult))
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         DeleteById id ->
-            { model | results = model.results |> List.filter (\r -> r.id /= id) }
+            ( { model | results = model.results |> List.filter (\r -> r.id /= id) }, Cmd.none )
 
         SetQuery q ->
-            { model | query = q |> Debug.log "Debugging" }
+            ( { model | query = q, error = Nothing }, Cmd.none )
+
+        Search ->
+            ( { model | error = Nothing }, searchGithubApi model.query )
+
+        HandleGithubResponse (Ok results) ->
+            ( { model | results = results }, Cmd.none )
+
+        HandleGithubResponse (Err error) ->
+            ( { model | error = Just (handleHttpError error) }, Cmd.none )
+
+
+handleHttpError : Http.Error -> String
+handleHttpError httpError =
+    case httpError of
+        Http.NetworkError ->
+            "Are you sure the server is running?"
+
+        Http.Timeout ->
+            "Request timed out!"
+
+        Http.BadUrl url ->
+            "Invalid URL: " ++ url
+
+        Http.BadStatus response ->
+            case response.status.code of
+                401 ->
+                    "Unauthorized"
+
+                404 ->
+                    "Not found"
+
+                code ->
+                    "Error Code: " ++ (toString code)
+
+        Http.BadPayload message _ ->
+            "JSON Decoder Error: " ++ message
+
+
+
+-- CMDs
+
+
+searchGithubApi : String -> Cmd Msg
+searchGithubApi query =
+    let
+        getRequest =
+            Http.get (githubApiUrl query) githubDecoder
+    in
+        Http.send HandleGithubResponse getRequest
+
+
+githubApiUrl : String -> String
+githubApiUrl query =
+    "https://api.github.com/search/repositories?access_token="
+        ++ Auth.token
+        ++ "&q="
+        ++ query
+        ++ "+language:elm&sort=stars&order=desc"
 
 
 
 -- DECODERS
-
-
-fakeResults : List SearchResult
-fakeResults =
-    decodeResults FakeResponse.json
-
-
-decodeResults : String -> List SearchResult
-decodeResults json =
-    case (json |> Decode.decodeString githubDecoder) of
-        Ok searchResults ->
-            searchResults
-
-        Err error ->
-            let
-                _ =
-                    Debug.log "Error Decoding with Github Decoder" error
-            in
-                []
 
 
 githubDecoder : Decoder (List SearchResult)
@@ -97,6 +141,7 @@ view model =
     div [ class "content" ]
         [ viewElmHubHeader
         , viewSearchElmHubs model.query
+        , viewErrorMessage model.error
         , viewElmHubs model.results
         ]
 
@@ -112,14 +157,19 @@ viewElmHubHeader =
 viewSearchElmHubs : String -> Html Msg
 viewSearchElmHubs query =
     div []
-        [ input
-            [ class "search-query"
-            , onInput SetQuery
-            , defaultValue query
-            ]
-            []
-        , button [ class "search-button" ] [ text "Search" ]
+        [ input [ class "search-query", onInput SetQuery, defaultValue query ] []
+        , button [ class "search-button", onClick Search ] [ text "Search" ]
         ]
+
+
+viewErrorMessage : Maybe String -> Html a
+viewErrorMessage msg =
+    case msg of
+        Just description ->
+            div [ class "error" ] [ text description ]
+
+        Nothing ->
+            div [] [ text "" ]
 
 
 viewElmHubs : List SearchResult -> Html Msg
@@ -144,8 +194,9 @@ viewSearchResults result =
 
 main : Program Never Model Msg
 main =
-    Html.beginnerProgram
-        { model = initialModel
+    Html.program
+        { init = ( initialModel, Cmd.none )
         , view = view
         , update = update
+        , subscriptions = \_ -> Sub.none
         }

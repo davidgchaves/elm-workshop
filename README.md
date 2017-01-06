@@ -546,3 +546,53 @@ There's only two cases:
 - [JSON decoding](http://guide.elm-lang.org/interop/json.html)
 - [`Json.Decode` documentation](http://package.elm-lang.org/packages/elm-lang/core/5.0.0/Json-Decode)
 - [`elm-decode-pipeline` documentation](http://package.elm-lang.org/packages/NoRedInk/elm-decode-pipeline/latest)
+
+
+## 7. Client-Server Communication
+
+### (Pure) Function Guarantees in Elm
+
+1. Same arguments produce the same return value.
+2. No Side Effects.
+
+### What is a `Cmd`?
+
+A `Cmd` is some logic that you want to run that does not obey the guarantee that *given the same arguments, a function returns the same result*.
+
+#### Managed Effects with `Http.Request`
+
+```elm
+Http.getString : String                          -> Http.Request String
+Http.get       : String -> Json.Decode.Decoder a -> Http.Request a
+```
+
+#### A `Cmd` example using `Http.send`
+
+`Http.send` sends a `Http.Request` and returns a `Cmd Msg`
+
+```elm
+-- Http.send : (Result Http.Error a -> Msg) -> Http.Request a -> Cmd Msg
+
+searchGithubApiCmd : Cmd Msg
+searchGithubApiCmd =
+    let
+        getRequest =
+            Http.get "https://api.github.com?q=elm" githubDecoder
+    in
+        Http.send HandleResponse getRequest
+
+type Msg
+    = HandleResponse (Result Http.Error a)
+```
+
+### Read it out load
+
+- `Decoder (List SearchResult)`: A `Decoder` of a `List` of `SearchResult`s.
+- `Html Msg`: `Html` producing `Msg`.
+- `Cmd Msg`: `Cmd` producing/resulting in `Msg`.
+
+### References
+
+- [Running Effects](http://guide.elm-lang.org/architecture/effects/)
+- [HTTP Error documentation](http://package.elm-lang.org/packages/elm-lang/http/1.0.0/Http#Error)
+- [Modules syntax reference](http://elm-lang.org/docs/syntax#modules)
