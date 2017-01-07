@@ -597,3 +597,160 @@ type Msg
 - [HTTP Error documentation](http://package.elm-lang.org/packages/elm-lang/http/1.0.0/Http#Error)
 - [Modules syntax reference](http://elm-lang.org/docs/syntax#modules)
 - [Html.Keyed documentation](http://package.elm-lang.org/packages/elm-lang/html/2.0.0/Html-Keyed)
+
+
+## 8. JavaScript Interop
+
+### Type variables
+
+``` elm
+List.reverse : List a -> List a -- where `a` is a TYPE VARIABLE
+```
+
+### Data Out (`Cmd`), Data In (`Sub`) Policy
+
+We talk to JavaScript the same way we talk to servers (no direct function calls involved):
+
+- Elm sends data to Javascript (the same way that sends data to a server).
+- JavaScript sends data to Elm (the same way that a server sends data to Elm).
+
+#### Elm Land: Exit the Data (`Cmd`)
+
+A `Cmd a` results in data sent into a callback in the JavaScript side.
+
+#### Elm land: Enter the Data (`Sub`)
+
+A `Sub a` results in data received from JavaScript and fed into `update`.
+
+### `Cmd Msg` vs `Cmd msg`
+
+- `Cmd Msg`:
+	- produces messages of type `Msg`,
+	- works with `update` functions that accept `Msg`.
+- `Cmd msg` (or even better `Cmd a`):
+	- works with **any** `update` function,
+	- does not produce any message.
+
+The behavior of `Cmd a` is also known as **fire-and-forget**.
+
+### To and From JS using `port`s
+
+#### 0. The `port` keyword
+
+`Main.elm`
+
+```elm
+port module Main exposing (..)
+```
+
+A `port module` means that it can talk to JavaScript.
+
+#### 1. `port searchGithubApiWithJS`
+
+`Main.elm`
+
+```elm
+port searchGithubApiWithJS : String -> Cmd a
+```
+
+The `searchGithubApiWithJS` `port` sends a `String` to JS land via a `Cmd`:
+
+- `String` means we are sending a `String` into a JavaScript callback.
+- `Cmd a` means we are going to send a **fire-and-forget** `Cmd` into a JavaScript callback.
+- `port searchGithubApiWithJS` means we are creating an `app.ports.searchGithubApiWithJS` on the JavaScript side.
+
+#### 2. `subscribe`ing in JS land
+
+`main.js`
+
+```javascript
+const app = Elm.Main.embed(
+  document.getElementById('elm-app')
+)
+
+const searchGithub = query => ...
+
+app.ports.searchGithubApiWithJS.subscribe(searchGithub)
+```
+
+`app.ports.searchGithubApiWithJS.subscribe(searchGithub)`:
+
+- wires up `searchGithub`
+- with the `query` coming from Elm land.
+
+#### 3. `port responseFromGithubApiWithJS`
+
+`Main.elm`
+
+```elm
+port responseFromGithubApiWithJS : (Json.Decode.Value -> a) -> Sub a
+```
+
+The `responseFromGithubApiWithJS` `port` catches a `Result` from JS land via a `Msg` (the `a`):
+
+- `Json.Decode.Value` represents an unknown shaped JavaScript value.
+- `(Value -> a)` decodes the JavaScript value into a `Msg`.
+- `Sub a` feeds the `Msg` into `update`.
+- `port responseFromGithubApiWithJS` means we are creating an `app.ports.responseFromGithubApiWithJS` on the JavaScript side.
+
+#### 4. `send`ing data from JS land
+
+`main.js`
+
+```javascript
+const app = Elm.Main.embed(
+  document.getElementById('elm-app')
+)
+
+const searchGithub = query =>
+  fetch(query)
+    .then(res => res.json())
+    .then(repos => app.ports.responseFromGithubApiWithJS.send(repos))
+```
+
+`app.ports.responseFromGithubApiWithJS.send(repos))`:
+
+- sends the `repos` JS object
+- into `responseFromGithubApiWithJS` in Elm land.
+
+#### 5. Wiring up the `Sub`scription in Elm land
+
+`Main.elm`
+
+```elm
+main : Program Never Model Msg
+main =
+    Html.program
+        { ...
+        , subscriptions = \_ -> responseFromGithubApiWithJS decodeResponseFromJS
+        }
+```
+
+#### 6. Decoding the JS data in Elm land
+
+`Main.elm`
+
+```elm
+subscriptions = \_ -> responseFromGithubApiWithJS decodeResponseFromJS
+
+port responseFromGithubApiWithJS : (Json.Decode.Value -> a) -> Sub a
+
+decodeResponseFromJS : Json.Decode.Value -> Msg
+decodeResponseFromJS json =
+    HandleGithubResponseFromJS (json |> Json.Decode.decodeValue githubDecoder)
+
+type Msg
+    = ...
+    | HandleGithubResponseFromJS (Result String (List SearchResult))
+```
+
+From `Json.Decode.Value` into `Result String (List SearchResult)` wrapped in a `Msg` constructor.
+
+### The `Elm` object in JS land
+
+The `Elm` object on the JavaScript side contains your Elm modules as fields on it, so `Elm.Main` in JavaScript refers to the `Main` module in Elm.
+
+### References
+
+- [JavaScript and Ports Guide](http://guide.elm-lang.org/interop/javascript.html)
+- [fetch API documentation](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)

@@ -1,4 +1,4 @@
-module Main exposing (..)
+port module Main exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (class, defaultValue, href, target)
@@ -45,8 +45,10 @@ initialModel =
 type Msg
     = DeleteById Int
     | SetQuery String
-    | Search
+    | SearchElm
+    | SearchJS
     | HandleGithubResponse (Result Http.Error (List SearchResult))
+    | HandleGithubResponseFromJS (Result String (List SearchResult))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -58,14 +60,23 @@ update msg model =
         SetQuery q ->
             ( { model | query = q, error = Nothing }, Cmd.none )
 
-        Search ->
-            ( { model | error = Nothing }, searchGithubApi model.query )
+        SearchElm ->
+            ( { model | error = Nothing }, searchGithubApi (githubApiUrl model.query) )
+
+        SearchJS ->
+            ( { model | error = Nothing }, searchGithubApiWithJS (githubApiUrl model.query) )
 
         HandleGithubResponse (Ok results) ->
             ( { model | results = results }, Cmd.none )
 
         HandleGithubResponse (Err error) ->
             ( { model | error = Just (handleHttpError error) }, Cmd.none )
+
+        HandleGithubResponseFromJS (Ok results) ->
+            ( { model | results = results }, Cmd.none )
+
+        HandleGithubResponseFromJS (Err error) ->
+            ( { model | error = Just error }, Cmd.none )
 
 
 handleHttpError : Http.Error -> String
@@ -95,6 +106,27 @@ handleHttpError httpError =
             "JSON Decoder Error: " ++ message
 
 
+githubApiUrl : String -> String
+githubApiUrl query =
+    "https://api.github.com/search/repositories?access_token="
+        ++ Auth.token
+        ++ "&q="
+        ++ query
+        ++ "+language:elm&sort=stars&order=desc"
+
+
+
+-- SUBSCRIPTIONS
+
+
+port responseFromGithubApiWithJS : (Decode.Value -> a) -> Sub a
+
+
+decodeResponseFromJS : Decode.Value -> Msg
+decodeResponseFromJS json =
+    HandleGithubResponseFromJS (json |> Decode.decodeValue githubDecoder)
+
+
 
 -- CMDs
 
@@ -103,18 +135,12 @@ searchGithubApi : String -> Cmd Msg
 searchGithubApi query =
     let
         getRequest =
-            Http.get (githubApiUrl query) githubDecoder
+            Http.get query githubDecoder
     in
         Http.send HandleGithubResponse getRequest
 
 
-githubApiUrl : String -> String
-githubApiUrl query =
-    "https://api.github.com/search/repositories?access_token="
-        ++ Auth.token
-        ++ "&q="
-        ++ query
-        ++ "+language:elm&sort=stars&order=desc"
+port searchGithubApiWithJS : String -> Cmd a
 
 
 
@@ -159,7 +185,8 @@ viewSearchElmHubs : String -> Html Msg
 viewSearchElmHubs query =
     div []
         [ input [ class "search-query", onInput SetQuery, defaultValue query ] []
-        , button [ class "search-button", onClick Search ] [ text "Search" ]
+        , button [ class "search-button", onClick SearchElm ] [ text "Search Elm" ]
+        , button [ class "search-button", onClick SearchJS ] [ text "Search JS" ]
         ]
 
 
@@ -201,5 +228,5 @@ main =
         { init = ( initialModel, Cmd.none )
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.none
+        , subscriptions = \_ -> responseFromGithubApiWithJS decodeResponseFromJS
         }
