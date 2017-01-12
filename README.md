@@ -11,7 +11,7 @@
 3. Run the following command to install everything else:
 
 ```bash
-❯ npm install
+❯ npm install -g elm elm-test elm-css elm-live
 ```
 
 ### Create a GitHub Personal Access Token
@@ -48,6 +48,25 @@ an API secret, and you should [delete this token](https://github.com/settings/to
 ```bash
 ❯ elm-live Main.elm --open --pushstate --output=elm.js
 ```
+
+### Running Tests
+
+Do either (or both!) of the following:
+
+#### Running tests on the command line
+
+```bash
+❯ elm-test
+```
+
+#### Running tests in a browser
+
+```bash
+❯ cd tests
+❯ elm-reactor
+```
+
+Then visit [localhost:8000](http://localhost:8000) and choose `HtmlRunner.elm`.
 
 
 ## 1. Rendering a Page
@@ -754,3 +773,46 @@ The `Elm` object on the JavaScript side contains your Elm modules as fields on i
 
 - [JavaScript and Ports Guide](http://guide.elm-lang.org/interop/javascript.html)
 - [fetch API documentation](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
+
+
+## 9. Testing
+
+### Unit Tests vs Property Based Tests
+
+```elm
+-- unit test
+test "Reversing twice does nothing" <|
+    \() ->
+        [ 1, 2, 3 ]
+            |> List.reverse
+            |> List.reverse
+            |> Expect.equal [ 1, 2, 3 ]
+
+-- property based test with 1 fuzzer
+fuzz int "Reversing twice does nothing" <|
+    \x ->
+        [ 1, 2, x ]
+            |> List.reverse
+            |> List.reverse
+            |> Expect.equal [ 1, 2, x ]
+
+-- property based test composing fuzzers
+fuzz (list int) "Reversing twice does nothing" <|
+    \xs ->
+        xs
+            |> List.reverse
+            |> List.reverse
+            |> Expect.equal xs
+
+-- property based test with 2 fuzzers
+fuzz2 int float "Integers are bigger than floats (FAILS)" <|
+    \randomInt randomFloat ->
+        randomInt
+            |> Expect.greaterThan randomFloat
+```
+
+### References
+
+* [Using Elm packages](https://github.com/elm-lang/elm-package/blob/master/README.md#basic-usage)
+* [elm-test documentation](http://package.elm-lang.org/packages/elm-community/elm-test/latest)
+* [`(<|)` documentation](http://package.elm-lang.org/packages/elm-lang/core/latest/Basics#<|)
