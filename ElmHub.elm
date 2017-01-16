@@ -1,7 +1,7 @@
 port module ElmHub exposing (..)
 
 import Html exposing (..)
-import Html.Attributes exposing (class, defaultValue, href, target, type_)
+import Html.Attributes exposing (class, defaultValue, href, selected, target, type_, value)
 import Html.Events exposing (on, onClick, onInput)
 import Json.Decode as Decode exposing (Decoder)
 import Http
@@ -25,6 +25,7 @@ type alias Model =
     , error : Maybe String
     , minStars : Int
     , minStarsError : Maybe String
+    , searchIn : String
     }
 
 
@@ -39,6 +40,7 @@ initialModel =
     , error = Nothing
     , minStars = 5
     , minStarsError = Nothing
+    , searchIn = "name"
     }
 
 
@@ -59,6 +61,7 @@ type Msg
     | HandleGithubResponse (Result Http.Error (List SearchResult))
     | HandleGithubResponseFromJS (Result String (List SearchResult))
     | SetMinStars String
+    | SetSearchIn String
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -71,10 +74,10 @@ update msg model =
             ( { model | query = q, error = Nothing }, Cmd.none )
 
         SearchElm ->
-            ( { model | error = Nothing }, searchGithubApi (githubApiUrl model.query model.minStars) )
+            ( { model | error = Nothing }, searchGithubApi (githubApiUrl model.query model.minStars model.searchIn) )
 
         SearchJS ->
-            ( { model | error = Nothing }, searchGithubApiWithJS (githubApiUrl model.query model.minStars) )
+            ( { model | error = Nothing }, searchGithubApiWithJS (githubApiUrl model.query model.minStars model.searchIn) )
 
         HandleGithubResponse (Ok results) ->
             ( { model | results = results }, Cmd.none )
@@ -95,6 +98,9 @@ update msg model =
 
                 Err _ ->
                     ( { model | minStarsError = Just "Need a number!" }, Cmd.none )
+
+        SetSearchIn searchIn ->
+            ( { model | searchIn = searchIn }, Cmd.none )
 
 
 handleHttpError : Http.Error -> String
@@ -124,12 +130,14 @@ handleHttpError httpError =
             "JSON Decoder Error: " ++ message
 
 
-githubApiUrl : String -> Int -> String
-githubApiUrl query minStars =
+githubApiUrl : String -> Int -> String -> String
+githubApiUrl query minStars searchIn =
     "https://api.github.com/search/repositories?access_token="
         ++ Auth.token
         ++ "&q="
         ++ query
+        ++ "+in:"
+        ++ searchIn
         ++ "+stars:>="
         ++ (minStars |> toString)
         ++ "+language:elm&sort=stars&order=desc"
@@ -193,6 +201,11 @@ onBlurWithTargetValue toMsg =
     on "blur" (Decode.map toMsg Html.Events.targetValue)
 
 
+onChange : (String -> a) -> Attribute a
+onChange toMsg =
+    on "change" (Decode.map toMsg Html.Events.targetValue)
+
+
 
 -- VIEW
 
@@ -231,6 +244,16 @@ viewSearchElmHubs model =
 
                 Nothing ->
                     div [] [ text "" ]
+
+        viewSearchIn =
+            div [ class "search-option" ]
+                [ label [ class "top-label" ] [ text "Search In" ]
+                , select [ onChange SetSearchIn ]
+                    [ option [ value "name", selected True ] [ text "Name" ]
+                    , option [ value "description" ] [ text "Description" ]
+                    , option [ value "name,description" ] [ text "Name & Description" ]
+                    ]
+                ]
     in
         div [ class "search" ]
             [ div [ class "search-options" ]
@@ -238,6 +261,7 @@ viewSearchElmHubs model =
                     [ viewMinStarsInput
                     , viewMinStarsError
                     ]
+                , viewSearchIn
                 ]
             , div [ class "search-input" ]
                 [ input [ class "search-query", onInput SetQuery, defaultValue model.query ] []
