@@ -245,19 +245,26 @@ viewElmHubHeader =
 viewSearchElmHubs : Model -> Html Msg
 viewSearchElmHubs model =
     let
-        viewMinStarsInput =
-            div []
-                [ label [ class "top-label" ] [ text "Minimum Stars" ]
-                , input [ type_ "text", onBlurWithTargetValue SetMinStars, defaultValue (toString model.minStars) ] []
-                ]
+        viewMinStars =
+            let
+                viewMinStarsInput =
+                    div []
+                        [ label [ class "top-label" ] [ text "Minimum Stars" ]
+                        , input [ type_ "text", onBlurWithTargetValue SetMinStars, defaultValue (toString model.minStars) ] []
+                        ]
 
-        viewMinStarsError =
-            case model.minStarsError of
-                Just error ->
-                    div [ class "stars-error" ] [ text error ]
+                viewMinStarsError =
+                    case model.minStarsError of
+                        Just error ->
+                            div [ class "stars-error" ] [ text error ]
 
-                Nothing ->
-                    div [] [ text "" ]
+                        Nothing ->
+                            div [] [ text "" ]
+            in
+                div [ class "search-option" ]
+                    [ viewMinStarsInput
+                    , viewMinStarsError
+                    ]
 
         viewSearchIn =
             div [ class "search-option" ]
@@ -283,10 +290,7 @@ viewSearchElmHubs model =
     in
         div [ class "search" ]
             [ div [ class "search-options" ]
-                [ div [ class "search-option" ]
-                    [ viewMinStarsInput
-                    , viewMinStarsError
-                    ]
+                [ viewMinStars
                 , viewUserFilter
                 , viewSearchIn
                 ]
