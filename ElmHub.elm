@@ -23,7 +23,12 @@ type alias Model =
     { query : String
     , results : List SearchResult
     , error : Maybe String
-    , minStars : Int
+    , searchOptions : SearchOptionsModel
+    }
+
+
+type alias SearchOptionsModel =
+    { minStars : Int
     , minStarsError : Maybe String
     , searchIn : String
     , userFilter : String
@@ -39,7 +44,18 @@ initialModel =
     { query = ""
     , results = []
     , error = Nothing
-    , minStars = 5
+    , searchOptions =
+        { minStars = 5
+        , minStarsError = Nothing
+        , searchIn = "name"
+        , userFilter = ""
+        }
+    }
+
+
+searchOptionsInitialModel : SearchOptionsModel
+searchOptionsInitialModel =
+    { minStars = 5
     , minStarsError = Nothing
     , searchIn = "name"
     , userFilter = ""
@@ -62,7 +78,11 @@ type Msg
     | SearchJS
     | HandleGithubResponse (Result Http.Error (List SearchResult))
     | HandleGithubResponseFromJS (Result String (List SearchResult))
-    | SetMinStars String
+    | SearchOptions SearchOptionsMsg
+
+
+type SearchOptionsMsg
+    = SetMinStars String
     | SetSearchIn String
     | SetUserFilter String
 
@@ -94,19 +114,26 @@ update msg model =
         HandleGithubResponseFromJS (Err error) ->
             ( { model | error = Just error }, Cmd.none )
 
+        SearchOptions searchOptionsMsg ->
+            ( { model | searchOptions = updateSearchOptions searchOptionsMsg model.searchOptions }, Cmd.none )
+
+
+updateSearchOptions : SearchOptionsMsg -> SearchOptionsModel -> SearchOptionsModel
+updateSearchOptions searchOptionsMsg searchOptionsModel =
+    case searchOptionsMsg of
         SetMinStars minStarsStr ->
             case String.toInt minStarsStr of
                 Ok minStars ->
-                    ( { model | minStars = minStars, minStarsError = Nothing }, Cmd.none )
+                    { searchOptionsModel | minStars = minStars, minStarsError = Nothing }
 
                 Err _ ->
-                    ( { model | minStarsError = Just "Need a number!" }, Cmd.none )
+                    { searchOptionsModel | minStarsError = Just "Need a number!" }
 
         SetSearchIn searchIn ->
-            ( { model | searchIn = searchIn }, Cmd.none )
+            { searchOptionsModel | searchIn = searchIn }
 
         SetUserFilter userFilter ->
-            ( { model | userFilter = userFilter }, Cmd.none )
+            { searchOptionsModel | userFilter = userFilter }
 
 
 handleHttpError : Http.Error -> String
@@ -140,19 +167,19 @@ githubApiUrl : Model -> String
 githubApiUrl model =
     let
         userFilter =
-            if String.isEmpty model.userFilter then
+            if String.isEmpty model.searchOptions.userFilter then
                 ""
             else
-                "+user:" ++ model.userFilter
+                "+user:" ++ model.searchOptions.userFilter
     in
         "https://api.github.com/search/repositories?access_token="
             ++ Auth.token
             ++ "&q="
             ++ model.query
             ++ "+in:"
-            ++ model.searchIn
+            ++ model.searchOptions.searchIn
             ++ "+stars:>="
-            ++ (model.minStars |> toString)
+            ++ (model.searchOptions.minStars |> toString)
             ++ userFilter
             ++ "+language:elm&sort=stars&order=desc"
 
@@ -245,7 +272,7 @@ viewElmHubHeader =
 viewSearchElmHubs : Model -> Html Msg
 viewSearchElmHubs model =
     div [ class "search" ]
-        [ viewSearchOptions model
+        [ (viewSearchOptions model.searchOptions) |> Html.map SearchOptions
         , viewSearchInput model.query
         ]
 
@@ -263,16 +290,16 @@ viewSearchInput query =
 -- BEGIN VIEWSEARCHOPTIONS
 
 
-viewSearchOptions : Model -> Html Msg
-viewSearchOptions model =
+viewSearchOptions : SearchOptionsModel -> Html SearchOptionsMsg
+viewSearchOptions searchOptionsModel =
     div [ class "search-options" ]
-        [ viewMinStars model.minStars model.minStarsError
-        , viewUserFilter model.userFilter
+        [ viewMinStars searchOptionsModel.minStars searchOptionsModel.minStarsError
+        , viewUserFilter searchOptionsModel.userFilter
         , viewSearchIn
         ]
 
 
-viewMinStars : Int -> Maybe String -> Html Msg
+viewMinStars : Int -> Maybe String -> Html SearchOptionsMsg
 viewMinStars minStars minStarsError =
     div [ class "search-option" ]
         [ viewMinStarsInput minStars
@@ -280,7 +307,7 @@ viewMinStars minStars minStarsError =
         ]
 
 
-viewMinStarsInput : Int -> Html Msg
+viewMinStarsInput : Int -> Html SearchOptionsMsg
 viewMinStarsInput minStars =
     div []
         [ label [ class "top-label" ] [ text "Minimum Stars" ]
@@ -303,7 +330,7 @@ viewMinStarsError minStarsError =
             div [] [ text "" ]
 
 
-viewUserFilter : String -> Html Msg
+viewUserFilter : String -> Html SearchOptionsMsg
 viewUserFilter userFilter =
     div [ class "search-option" ]
         [ label [ class "top-label" ] [ text "Owned By" ]
@@ -317,7 +344,7 @@ viewUserFilter userFilter =
         ]
 
 
-viewSearchIn : Html Msg
+viewSearchIn : Html SearchOptionsMsg
 viewSearchIn =
     div [ class "search-option" ]
         [ label [ class "top-label" ] [ text "Search In" ]
