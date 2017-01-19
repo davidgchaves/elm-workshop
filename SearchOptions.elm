@@ -2,8 +2,8 @@ module SearchOptions exposing (Model, Msg, initialModel, update, view)
 
 import Html exposing (..)
 import Html.Attributes exposing (class, defaultValue, placeholder, selected, type_, value)
-import Html.Events exposing (on, onInput)
-import Json.Decode as Decode
+import Html.Events exposing (onInput)
+import EventHandlers exposing (onBlurWithTargetValue, onChange)
 
 
 -- TYPE ALIAS
@@ -56,20 +56,6 @@ update msg model =
 
         SetUserFilter userFilter ->
             { model | userFilter = userFilter }
-
-
-
--- CUSTOM EVENT HANDLERS
-
-
-onBlurWithTargetValue : (String -> a) -> Attribute a
-onBlurWithTargetValue toMsg =
-    on "blur" (Decode.map toMsg Html.Events.targetValue)
-
-
-onChange : (String -> a) -> Attribute a
-onChange toMsg =
-    on "change" (Decode.map toMsg Html.Events.targetValue)
 
 
 
