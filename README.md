@@ -816,3 +816,246 @@ fuzz2 int float "Integers are bigger than floats (FAILS)" <|
 * [Using Elm packages](https://github.com/elm-lang/elm-package/blob/master/README.md#basic-usage)
 * [elm-test documentation](http://package.elm-lang.org/packages/elm-community/elm-test/latest)
 * [`(<|)` documentation](http://package.elm-lang.org/packages/elm-lang/core/latest/Basics#<|)
+
+
+## 10. Delegation
+
+### How to simplify your `Model`?
+
+Reduce the number of fields in your `Model`, by:
+
+1. making a new `type alias` (let's say `SearchOptionsModel`) and,
+2. importing it back into your `Model` as a new field (let's say `searchOptions`)
+
+It's like namespacing the `Model`.
+
+#### Simplifying your `Model` example
+
+```elm
+type alias Model =
+    { query : String
+    , results : List SearchResult
+    , errorMessage : Maybe String
+    }
+```
+
+##### Take 1
+
+```elm
+type alias Model =
+    { query : String
+    , results : List SearchResult
+    , errorMessage : Maybe String
+    , minStars : Int
+    , minStarsError : Maybe String
+    , searchIn : String
+    , userFilter : String
+    }
+
+input []
+    [ value model.searchIn
+    , onInput SetSearchIn
+    ]
+```
+
+##### Take 2 with delegation
+
+```elm
+type alias Model =
+    { query : String
+    , results : List SearchResult
+    , errorMessage : Maybe String
+    , searchOptions : SearchOptionsModel
+    }
+
+type alias SearchOptionsModel =
+    { minStars : Int
+    , minStarsError : Maybe String
+    , searchIn : String
+    , userFilter : String
+    }
+
+input []
+    [ value model.searchOptions.searchIn
+    , onInput SetSearchIn
+    ]
+```
+
+### How to simplify your `Msg`
+
+Reduce the number of types in your `Msg`, by:
+
+1. making a new `union type` (let's say `SearchOptionsMsg`) and,
+2. adding it back into your `Msg` as a new type (let's say `| SearchOptions SearchOptionsMsg`)
+
+It's like namespacing the `Msg`.
+
+#### Simplifying your `Msg` example
+
+```elm
+type Msg
+    = Search
+    | SearchQuery String
+    | DeleteById Int
+```
+
+##### Take 1
+
+```elm
+type Msg
+    = Search
+    | SearchQuery String
+    | DeleteById Int
+    | SetMinStars String
+    | SetSearchIn String
+    | SetUserFilter String
+
+input []
+    [ value model.searchOptions.searchIn
+    , onInput SetSearchIn
+    ]
+```
+
+##### Take 2 with delegation
+
+```elm
+type Msg
+    = Search
+    | SearchQuery String
+    | DeleteById Int
+    | SearchOptions SearchOptionsMsg
+
+type SearchOptionsMsg
+    = SetMinStars String
+    | SetSearchIn String
+    | SetUserFilter String
+
+input []
+    [ value model.searchOptions.searchIn
+    , onInput (SearchOptions SetSearchIn)
+    ]
+```
+
+### How to scope your `view` functions?
+
+Aim for a narrower, more focused `view` functions:
+
+- Do not accept an entire `Model` when possible.
+- Do not return `Html Msg`, go for a scoped `Msg`.
+
+Something like:
+
+```elm
+-- BEFORE
+chunkOfView : Model -> Html Msg
+
+-- AFTER
+chunkOfView : ChunkOfModel -> Html MsgSubset
+```
+
+#### Scoping your `view` functions
+
+```elm
+type Msg = ...
+type SearchOptionsMsg = ...
+
+type alias Model = ...
+type alias SearchOptionsModel = ...
+
+viewOptions : Model -> Html Msg
+viewOptions model =
+    input []
+        [ value model.searchOptions.searchIn
+        , onInput (SearchOptions SetSearchIn)
+        ]
+```
+
+##### Solution
+
+```elm
+type Msg = ...
+type SearchOptionsMsg = ...          -- Scoped Msg
+
+type alias Model = ...
+type alias SearchOptionsModel = ...  -- A chunk of Model
+
+viewOptions : SearchOptionsModel -> Html SearchOptionsMsg
+viewOptions searchOptions =
+    input []
+        [ value searchOptions.searchIn
+        , onInput SetSearchIn
+        ]
+```
+
+### What is the downside for scoping your `view` functions?
+
+A type mismatch:
+
+```elm
+viewSearchOptions : SearchOptionsModel -> Html SearchOptionsMsg
+view              : Model              -> Html Msg
+```
+
+`view` can no longer use `viewSearchOptions` directly, because:
+
+- `view` return type is `Html Msg`,
+- `viewSearchOptions` return type is `Html SearchOptionsMsg`.
+
+#### How can we fix the type mismatch problem?
+
+Using `Html.map` with a `SearchOptionsMsg -> Msg` function.
+
+#### Which `SearchOptionsMsg -> Msg` function?
+
+The `SearchOptions SearchOptionsMsg` constructor from `Msg`
+
+```elm
+type Msg
+    = ...
+    | SearchOptions SearchOptionsMsg
+```
+
+### Fixing the type mismatch problem
+
+```elm
+type Msg = ... | SearchOptions SearchOptionsMsg
+
+viewSearchResult : SearchResult -> Html Msg
+viewSearchOptions : SearchOptionsModel -> Html SearchOptionsMsg
+
+view : Model -> Html Msg
+view model =
+    div [ class "content" ]
+        [ ...
+        , viewSearchOptions model.searchOptions  -- this produces the type mismatch
+        , ul [] (model.results |> List.map viewSearchResults)
+```
+
+#### Solution
+
+```elm
+type Msg = ... | SearchOptions SearchOptionsMsg
+
+viewSearchResult : SearchResult -> Html Msg
+viewSearchOptions : SearchOptionsModel -> Html SearchOptionsMsg
+
+view : Model -> Html Msg
+view model =
+    div [ class "content" ]
+        [ ...
+        , (viewSearchOptions model.searchOptions) |> Html.map SearchOptions
+        , ul [] (model.results |> List.map viewSearchResults)
+```
+
+### `map` galore!
+
+```elm
+List.map : (originalVal -> newVal) -> List originalVal -> List newVal
+Html.map : (originalMsg -> newMsg) -> Html originalMsg -> Html newMsg
+ Cmd.map : (originalMsg -> newMsg) ->  Cmd originalMsg ->  Cmd newMsg
+ Sub.map : (originalMsg -> newMsg) ->  Sub originalMsg ->  Sub newMsg
+```
+
+### References
+
+- [Html.map](http://package.elm-lang.org/packages/elm-lang/html/2.0.0/Html#map)
