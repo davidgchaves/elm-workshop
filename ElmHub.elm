@@ -3,9 +3,9 @@ port module ElmHub exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (class, defaultValue, href, target)
 import Html.Events exposing (onClick, onInput)
-import Html.Keyed as Keyed
 import Json.Decode as Decode exposing (Decoder)
 import Http
+import Table
 import Auth
 import SearchOptions
 
@@ -25,6 +25,7 @@ type alias Model =
     , results : List SearchResult
     , error : Maybe String
     , searchOptions : SearchOptions.Model
+    , tableState : Table.State
     }
 
 
@@ -38,6 +39,7 @@ initialModel =
     , results = []
     , error = Nothing
     , searchOptions = SearchOptions.initialModel
+    , tableState = Table.initialSort "Stars"
     }
 
 
@@ -58,6 +60,7 @@ type Msg
     | HandleGithubResponse (Result Http.Error (List SearchResult))
     | HandleGithubResponseFromJS (Result String (List SearchResult))
     | SearchOptions SearchOptions.Msg
+    | SetTableState Table.State
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -89,6 +92,9 @@ update msg model =
 
         SearchOptions searchOptionsMsg ->
             ( { model | searchOptions = SearchOptions.update searchOptionsMsg model.searchOptions }, Cmd.none )
+
+        SetTableState tableState ->
+            ( { model | tableState = tableState }, Cmd.none )
 
 
 handleHttpError : Http.Error -> String
@@ -198,7 +204,7 @@ view model =
         [ viewElmHubHeader
         , viewSearchElmHubs model
         , viewErrorMessage model.error
-        , viewElmHubs model.results
+        , viewElmHubs model.tableState model.results
         ]
 
 
@@ -237,19 +243,69 @@ viewErrorMessage msg =
             div [] [ text "" ]
 
 
-viewElmHubs : List SearchResult -> Html Msg
-viewElmHubs results =
-    Keyed.ul [ class "results" ] (List.map viewSearchResults results)
+viewElmHubs : Table.State -> List SearchResult -> Html Msg
+viewElmHubs currentTableState results =
+    Table.view tableConfig currentTableState results
 
 
-viewSearchResults : SearchResult -> ( String, Html Msg )
-viewSearchResults result =
-    ( toString result.id
-    , li []
-        [ span [ class "star-count" ]
-            [ result.stars |> toString |> text ]
-        , a [ href ("https://github.com/" ++ result.name), target "_blank" ]
-            [ text result.name ]
-        , button [ class "hide-result", onClick (DeleteById result.id) ] [ text "X" ]
+tableConfig : Table.Config SearchResult Msg
+tableConfig =
+    Table.config
+        { toId = .id >> toString
+        , toMsg = SetTableState
+        , columns = [ starsCustomColumn, nameCustomColumn, deleteCustomColumn ]
+        }
+
+
+starsCustomColumn : Table.Column SearchResult Msg
+starsCustomColumn =
+    Table.veryCustomColumn
+        { name = "Stars"
+        , viewData = viewStarsColumn
+        , sorter = Table.increasingOrDecreasingBy (.stars >> negate)
+        }
+
+
+viewStarsColumn : SearchResult -> Table.HtmlDetails Msg
+viewStarsColumn searchResult =
+    Table.HtmlDetails []
+        [ span
+            [ class "star-count" ]
+            [ searchResult.stars |> toString |> text ]
         ]
-    )
+
+
+nameCustomColumn : Table.Column SearchResult Msg
+nameCustomColumn =
+    Table.veryCustomColumn
+        { name = "Name"
+        , viewData = viewNameColumn
+        , sorter = Table.increasingOrDecreasingBy .name
+        }
+
+
+viewNameColumn : SearchResult -> Table.HtmlDetails Msg
+viewNameColumn searchResult =
+    Table.HtmlDetails []
+        [ a
+            [ href ("https://github.com/" ++ searchResult.name), target "_blank" ]
+            [ text searchResult.name ]
+        ]
+
+
+deleteCustomColumn : Table.Column SearchResult Msg
+deleteCustomColumn =
+    Table.veryCustomColumn
+        { name = ""
+        , viewData = viewDeleteColumn
+        , sorter = Table.unsortable
+        }
+
+
+viewDeleteColumn : SearchResult -> Table.HtmlDetails Msg
+viewDeleteColumn searchResult =
+    Table.HtmlDetails []
+        [ button
+            [ class "hide-result", onClick (DeleteById searchResult.id) ]
+            [ text "X" ]
+        ]

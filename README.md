@@ -1059,3 +1059,322 @@ Html.map : (originalMsg -> newMsg) -> Html originalMsg -> Html newMsg
 ### References
 
 - [Html.map](http://package.elm-lang.org/packages/elm-lang/html/2.0.0/Html#map)
+
+
+## 11. Scaling Elm Code
+
+### How to Address the "Deeply Nested Component Problem"?
+
+#### What is a Component (from our perspective)?
+
+A Component is something that owns its own state (Stateful Component).
+
+#### What is the "Deeply Nested Component Problem" about?
+
+It's about solving the problem of communicating between deeply nested components when they need each other data.
+
+#### How is the "Deeply Nested Component Problem" solved, usually?
+
+Unidirectional Data Flow (Flux, Redux, Elm Architecture, ...).
+
+#### The chicken and the Egg
+
+1. Nest stateful components to describe application behaviour.
+2. The "Deeply Nested Component Problem" arise.
+3. Use "Unidirectional Data Flow" to mitigate it.
+4. Nest more stateful components ...
+
+#### Once upon a time in Elm Land...
+
+In Elm:
+
+- we **don't need to** nest stateful components to describe application behaviour,
+
+So:
+
+- we somehow dodge the "Deeply Nested Component Problem".
+
+### How do we keep code modular at scale?
+
+The objective is to scale in a modular way:
+
+1. **Step 1**: Expand the existing **MVU** (Model-View-Update):
+	- Add some more fields to your `Model`.
+	- Add some more code to your `view`.
+	- Add some more branches to your `update`.
+	- Add some more `type`s to your `Msg`.
+2. **Step 2**: Refactor when needed.
+
+**DO NOT** prematurely isolate things.
+
+#### Splitting `view`
+
+When `view` gets painfully large, split it into smaller functions:
+
+- **Don't** change how `update` works!
+- **Don't** change how `Model` works!
+
+#### Splitting `Model`
+
+When `Model` gets painfully large, split it into smaller pieces:
+
+- **Don't** change how `update` works!
+- **Don't** change how `view` works!
+
+#### Splitting `update`
+
+When `update` gets painfully large, split it into smaller helper functions:
+
+- **Don't** change how `Model` works!
+- **Don't** change how `view` works!
+- **Do** usually change how `Msg` works!
+
+### How do we share code without duplication?
+
+The objective is to share code without duplication:
+
+- Think in terms of **functions**, not **components**.
+- We don't have to use anything fancier than **functions** to achieve **reuse**.
+
+#### Reuse 101 - A logo AKA "Not Even Needing Functions"
+
+```elm
+logo : Html a
+logo = img [ src "logo.png" ] []
+
+view : Model -> Html Msg
+view = logo
+```
+
+#### Reuse 201 - A fancyLink AKA "Enter Functions"
+
+```elm
+fancyLink : String -> String -> Html a
+fancyLink url caption =
+    a [ class "fancy-link", href url ] [ text caption ]
+
+view : Model -> Html Msg
+view model = fancyLink "/about" "About Us"
+```
+
+#### Reuse 202 - A profile AKA "Functions with Records"
+
+```elm
+profile : User -> Html a
+profile user =
+    div [ class "Profile" ]
+        [ a [ href ("/users/" ++ user.username) ]
+            [ img [ class "user-photo", src user.photo] [] ]
+        ]
+
+view : Model -> Html Msg
+view model = profile model.currentUser
+```
+
+#### Reuse 301 - A dumb (no interaction) checkbox
+
+Nothing goes out to `update` (notice the lowercase `msg`), even if the user clicks on it (**NOT VERY USEFUL**).
+
+```elm
+checkbox : String -> Bool -> Html msg
+checkbox caption isChecked =
+    label
+        [ input
+            [ type' "checkbox"
+            , checked isChecked
+            ] []
+        , text caption
+        ]
+
+view : Model -> Html Msg
+view model =
+    checkbox "enable sounds" model.enableSounds
+```
+
+#### Reuse 302 - A reusable checkbox AKA "DI or Telling a Function How to Talk to Me"
+
+A reusable checkbox.
+
+```elm
+checkbox : msg -> String -> Bool -> Html a
+checkbox toggleChecked caption isChecked =
+    label
+        [ input
+            [ type' "checkbox"
+            , checked isChecked
+            , onClick toggleChecked
+            ] []
+        , text caption
+        ]
+
+view : Model -> Html Msg
+view model =
+    checkbox ToggleSounds "enable sounds" model.enableSounds
+```
+
+Notice that:
+
+- We are reusing `checkbox` with interaction.
+- The `checkbox`:
+	- is not responsible for managing its own state,
+	- receives:
+		- whether or not is checked (`isChecked`),
+		- what to send to `update` if someone clicks (`toggleChecked`).
+
+#### Reuse 303 - A dumb (no interaction) dropdown
+
+Nothing goes out to `update` (notice the lowercase `msg`), even if the user changes the option on it (**NOT VERY USEFUL**).
+
+```elm
+dropdown : List String -> String -> Html a
+dropdown options selectedOpt =
+    let
+        viewOpt opt =
+            option [ selected (opt == selectedOpt) ] [ text opt ]
+    in
+        select [] (options |> List.map viewOpt)
+
+view : Model -> Html Msg
+view model =
+    dropdown [ "cat", "dog", "orangutan" ] "cat"
+```
+
+#### Reuse 304 - A reusable dropdown
+
+```elm
+dropdown : (String -> a) -> List String -> String -> Html a
+dropdown selectOpt options selectedOpt =
+    let
+        viewOpt opt =
+            option [ selected (opt == selectedOpt) ] [ text opt ]
+    in
+        select [ onChange selectOpt ] (options |> List.map viewOpt)
+
+view : Model -> Html Msg
+view model =
+    dropdown ChooseSpiritAnimal [ "cat", "dog", "orangutan" ] "cat"
+```
+
+Notice that:
+
+- We are reusing `dropdown` with interaction.
+- The `dropdown`:
+	- is not responsible for managing its own state,
+	- receives:
+		- a function (`selectOpt`, a union `type` constructor) specifying how to convert the selected option (a `String`) into a valid `Msg` for `update` to use it.
+- `ChooseSpiritAnimal` could be the union `type` constructor of the particular `Msg` that we want `dropdown` to produce.
+
+#### Reuse 401 - A Portable Signup Form (The Hard Way)
+
+```elm
+signup :
+    { setUsername  : (String -> msg)
+    , setPassword  : (String -> msg)
+    , setFirstName : (String -> msg)
+    , setLastName  : (String -> msg)
+    , setEmail     : (String -> msg)
+    , cancel       : msg
+    , submit       : (List ValidationError -> msg)
+    }
+    -> { username  : String
+       , password  : String
+       , firstName : String
+       , lastName  : String
+       , email     : String
+       }
+    -> Html msg
+```
+
+This is *the same* solution we used with the reusable dropdown:
+
+- Tell me how to `setUsername`,
+- Tell me how to `setPassword`,
+- Tell me how to `setFirstName`,
+- Tell me how to `setLastName`,
+- Tell me how to `setEmail`,
+- Tell me how to `cancel`,
+- Tell me how to `submit`.
+
+But in this case, it doesn't seem to work well (not quite easy to use).
+
+#### Reuse 402 - A Portable Signup Form (Composability)
+
+`SignupForm.elm`
+
+```elm
+type alias SignupModel =
+    { username  : String
+    , password  : String
+    , firstName : String
+    , lastName  : String
+    , email     : String
+    }
+
+view : SignupModel -> Html SignupMsg
+
+update : SignupMsg -> SignupModel -> ( SignupModel, Cmd SignupMsg )
+
+init : ( SignupModel, Cmd SignupMsg )
+```
+
+`Main.elm`
+
+```elm
+type alias Model =
+    { signup : SignupModel
+    , ...
+    }
+
+type Msg
+    = SignupMsg SignupMsg
+    | ...
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        SignupMsg signupMsg -> ...
+        ...
+
+view : Model -> Html Msg
+view model =
+    Signup.view model.signup
+        |> Html.map ...
+```
+
+#### An Easy Mistake to Make
+
+Since
+
+- **MVU** lets me isolate state...
+- ...and nesting isolated state feels familiar (like in React)...
+- ...we fall into the Deeply Nested Component trap.
+
+The danger of trying to solve something that the Elm Architecture solves for us:
+
+- Don't replicate **MVU** (signup form) unless the easy solution (reusable dropdown) falls short.
+- Start with functions and then, if you feel the pain, refactor.
+
+### Function Composition Operators
+
+Higher-order helpers in Elm:
+
+- `|>`, `<|` (pipes).
+- `>>`, `<<` (function composition operators).
+
+Equivalence:
+
+```elm
+(\result -> toString result.id)
+
+(\result -> toString <| result.id)
+toString << .id
+
+(\result -> result.id |> toString)
+.id >> toString
+```
+
+### References
+
+- [Scaling the Elm Architecture](http://guide.elm-lang.org/reuse/)
+- [Sortable Table documentation](http://package.elm-lang.org/packages/evancz/elm-sortable-table/latest)
+- [Elm Autocomplete documentation](http://package.elm-lang.org/packages/thebritican/elm-autocomplete/latest)
